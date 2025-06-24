@@ -25,7 +25,6 @@ const BASE_URL =
     : '/api';
 
 const compressUrl = `${BASE_URL}/compress`;
-console.log(compressUrl)
 
 
 function App() {
