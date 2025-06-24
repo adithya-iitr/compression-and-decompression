@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/middleware/multerconfig.ts","./src/routes/compress.ts","./src/routes/upload.ts","./src/utils/compress.ts","./src/utils/algorithms/huffman.ts","./src/utils/algorithms/lz77.ts","./src/utils/algorithms/rle.ts"],"version":"5.6.3"}
