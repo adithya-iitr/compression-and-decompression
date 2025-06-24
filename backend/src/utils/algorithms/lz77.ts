@@ -1,37 +1,66 @@
 import { Buffer } from 'buffer';
 
-export function compressWithLZ77(input: Buffer): Buffer {
-  const windowSize = 255;
-  const output: number[] = [];
-  let i = 0;
+interface LZTuple {
+  offset: number;
+  length: number;
+  next: number;
+}
 
+export function compressWithLZ77(input: Buffer): Buffer {
+  const windowSize = 256;
+  const buffer: LZTuple[] = [];
+
+  let i = 0;
   while (i < input.length) {
     let matchLength = 0;
     let matchDistance = 0;
-    const maxLength = Math.min(255, input.length - i);
+    const maxMatchLength = 15;
 
-    for (let distance = 1; distance <= Math.min(i, windowSize); distance++) {
-      let length = 0;
+    const start = Math.max(0, i - windowSize);
+    for (let j = start; j < i; j++) {
+      let k = 0;
       while (
-        length < maxLength &&
-        input[i - distance + length] === input[i + length]
+        k < maxMatchLength &&
+        input[j + k] === input[i + k] &&
+        i + k < input.length
       ) {
-        length++;
+        k++;
       }
 
-      if (length > matchLength) {
-        matchLength = length;
-        matchDistance = distance;
+      if (k > matchLength) {
+        matchLength = k;
+        matchDistance = i - j;
       }
     }
 
-    if (matchLength >= 3) {
-      output.push(255, matchDistance, matchLength);
-      i += matchLength;
-    } else {
-      output.push(input[i]);
-      i++;
+    const nextByte = input[i + matchLength] ?? 0;
+    buffer.push({ offset: matchDistance, length: matchLength, next: nextByte });
+    i += matchLength + 1;
+  }
+
+  // Pack into a Buffer
+  const output: number[] = [];
+  for (const { offset, length, next } of buffer) {
+    output.push(offset, length, next);
+  }
+
+  return Buffer.from(output);
+}
+
+export function decompressWithLZ77(input: Buffer): Buffer {
+  const output: number[] = [];
+
+  for (let i = 0; i < input.length; i += 3) {
+    const offset = input[i];
+    const length = input[i + 1];
+    const next = input[i + 2];
+
+    const start = output.length - offset;
+    for (let j = 0; j < length; j++) {
+      output.push(output[start + j]);
     }
+
+    output.push(next);
   }
 
   return Buffer.from(output);

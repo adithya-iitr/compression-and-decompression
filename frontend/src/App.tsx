@@ -6,7 +6,6 @@ import { CompressionResults } from './components/CompressionResult';
 import { AlgorithmComparison } from './components/AlgorithmComparison';
 import { calculateCompressionRatio } from './utils/fileUtils';
 import { FileData, CompressionResult, CompressionAlgorithm } from '../../types';
-import { compressionAlgorithms } from './utils/CompressionAlgorithms';
 import axios from 'axios'
 
 // Type declaration for Vite's import.meta.env
@@ -18,7 +17,26 @@ declare global {
     };
   }
 }
-
+const compressionAlgorithms: CompressionAlgorithm[] = [
+  {
+    name: 'Huffman Coding',
+    key: 'huffman',
+    description: 'Variable-length encoding based on character frequency',
+    bestFor: 'Text files with varied character frequencies',
+  },
+  {
+    name: 'Run-Length Encoding',
+    key: 'rle',
+    description: 'Replaces sequences of identical characters with count and character',
+    bestFor: 'Data with many repeated sequences',
+  },
+  {
+    name: 'LZ77',
+    key: 'lz77',
+    description: 'Dictionary-based compression using sliding window',
+    bestFor: 'General-purpose compression with repeated patterns',
+  },
+];
 const BASE_URL =
   import.meta.env.MODE === 'development'
     ? 'http://localhost:8000/api'

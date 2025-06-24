@@ -16,8 +16,6 @@ export interface CompressionResult {
     key: string;
     description: string;
     bestFor: string;
-    compress: (data: string) => { compressed: string; time: number };
-    decompress: (data: string) => { decompressed: string; time: number };
   }
   
   export interface FileData {

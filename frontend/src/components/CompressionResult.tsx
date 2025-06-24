@@ -38,12 +38,6 @@ export function CompressionResults({
       alert('Download failed.');
     }
   };
-  
-
-  const handleDownloadDecompressed = () => {
-    const filename = `${result.filename.split('.')[0]}_decompressed.${result.filename.split('.').pop()}`;
-    downloadFile(result.originalData, filename);
-  };
 
   const compressionImproved = result.compressionRatio > 0;
 

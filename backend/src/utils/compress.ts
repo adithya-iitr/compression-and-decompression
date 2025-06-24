@@ -7,15 +7,15 @@ import {
   decompressWithHuffman,
 } from './algorithms/huffman';
 
-// import {
-//   compressWithRLE,
-//   decompressWithRLE,
-// } from './algorithms/rle';
+import {
+  compressWithRLE,
+  decompressWithRLE,
+} from './algorithms/rle';
 
-// import {
-//   compressWithLZ77,
-//   decompressWithLZ77,
-// } from './algorithms/lz77';
+import {
+  compressWithLZ77,
+  decompressWithLZ77,
+} from './algorithms/lz77';
 
 type AlgorithmPair = {
   compress: (data: Buffer) => Buffer;
@@ -27,14 +27,14 @@ const algorithmMap: Record<string, AlgorithmPair> = {
     compress: compressWithHuffman,
     decompress: decompressWithHuffman,
   },
-//   rle: {
-//     compress: compressWithRLE,
-//     decompress: decompressWithRLE,
-//   },
-//   lz77: {
-//     compress: compressWithLZ77,
-//     decompress: decompressWithLZ77,
-//   },
+  rle: {
+    compress: compressWithRLE,
+    decompress: decompressWithRLE,
+  },
+  lz77: {
+    compress: compressWithLZ77,
+    decompress: decompressWithLZ77,
+  },
 };
 
 export async function compressAndDecompressFile(

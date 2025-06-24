@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Zap, Clock } from 'lucide-react';
-import { CompressionAlgorithm, FileData, CompressionResult } from '../../../types';
+import { CompressionAlgorithm, FileData } from '../../../types';
 import { calculateCompressionRatio } from '../utils/fileUtils';
 
 interface AlgorithmComparisonProps {
