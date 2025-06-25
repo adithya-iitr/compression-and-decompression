@@ -48,3 +48,8 @@ npm run build
 npm run start
 ```
 The application will start at port 8000 and be ready to use
+
+LIVE deployement link:
+```bash
+https://compression-and-decompression-production.up.railway.app/
+```
