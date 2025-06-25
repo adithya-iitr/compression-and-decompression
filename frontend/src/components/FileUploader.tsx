@@ -14,6 +14,10 @@ interface FileUploaderProps {
   currentFile: UploadedFile | null;
   onClear: () => void;
 }
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8000/api'
+    : '/api';
 
 export function FileUploader({ onFileUpload, currentFile, onClear }: FileUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -24,7 +28,7 @@ export function FileUploader({ onFileUpload, currentFile, onClear }: FileUploade
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('http://localhost:8000/api/upload', {
+    const response = await fetch(`${BASE_URL}/upload`, {
       method: 'POST',
       body: formData,
     });

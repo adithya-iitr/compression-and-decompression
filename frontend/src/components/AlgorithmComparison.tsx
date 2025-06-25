@@ -12,6 +12,13 @@ interface ComparisonResult {
   compressionTime: number;
   compressedSize: number;
 }
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8000/api'
+    : '/api';
+const compressUrl=`${BASE_URL}/compress`
+const decompressUrl=`${BASE_URL}/decompress`
+
 
 export function AlgorithmComparison({ file }: AlgorithmComparisonProps) {
   const [results, setResults] = useState<ComparisonResult[]>([]);
@@ -28,7 +35,7 @@ export function AlgorithmComparison({ file }: AlgorithmComparisonProps) {
 
     for (const algorithm of ['huffman', 'rle', 'lz77']) {
       try {
-        const response = await fetch('http://localhost:8000/api/compress', {
+        const response = await fetch(compressUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

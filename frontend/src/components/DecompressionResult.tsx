@@ -22,6 +22,10 @@ interface DecompressionResultsProps {
   onDecompress: () => void;
   isDecompressing: boolean;
 }
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8000/api'
+    : '/api';
 
 export function DecompressionResults({
   result,
@@ -38,7 +42,7 @@ export function DecompressionResults({
       const filePathParts = result.decompressedFilePath.split('/');
       const filename = filePathParts[filePathParts.length - 1];
 
-      const response = await fetch(`http://localhost:8000/api/download/${filename}`);
+      const response = await fetch(`${BASE_URL}/download/${filename}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.statusText}`);
       }

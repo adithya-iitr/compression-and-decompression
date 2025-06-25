@@ -38,15 +38,12 @@ const compressionAlgorithms: any = [
     bestFor: 'General-purpose compression with repeated patterns',
   },
 ];
-// const BASE_URL =
-//   import.meta.env.MODE === 'development'
-//     ? 'http://localhost:8000/api/'
-//     : '/api/';
-// function joinUrl(base: string, path: string) {
-//   return base.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '');
-// }
-// const compressUrl = joinUrl(BASE_URL, 'compress');
-const compressUrl='http://localhost:8000/api/compress'
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8000/api'
+    : '/api';
+const compressUrl=`${BASE_URL}/compress`
+const decompressUrl=`${BASE_URL}/decompress`
 
 function App() {
   const [currentFile, setCurrentFile] = useState<FileData | null>(null);
@@ -76,7 +73,7 @@ function App() {
     setIsCompressing(true);
     try {
       console.log(compressUrl)
-      const response = await axios.post('http://localhost:8000/api/compress', {
+      const response = await axios.post(compressUrl, {
         filePath: currentFile.path,
         algorithm: selectedAlgorithm, // 'huffman' | 'rle' | 'lz77'
         originalExtension: currentFile.name.split('.').pop() || 'txt',
@@ -128,7 +125,7 @@ function App() {
         return;
       }
   
-      const response = await axios.post('http://localhost:8000/api/decompress', {
+      const response = await axios.post(decompressUrl, {
         filePath: currentFile.path,
         algorithm: inferredAlgorithm,
       });

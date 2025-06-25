@@ -15,6 +15,10 @@ interface CompressionResultsProps {
   onCompress: () => void;
   isCompressing: boolean;
 }
+const BASE_URL =
+  import.meta.env.MODE === 'development'
+    ? 'http://localhost:8000/api'
+    : '/api';
 
 export function CompressionResults({
   result,
@@ -31,7 +35,7 @@ export function CompressionResults({
       const filePathParts = result.compressedFilePath.split('/');
       const filename = filePathParts[filePathParts.length - 1]; // Extract just the filename
       console.log(filename)
-      const response = await fetch(`http://localhost:8000/api/download/${filename}`);
+      const response = await fetch(`${BASE_URL}/download/${filename}`);
       console.log(response)
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.statusText}`);
