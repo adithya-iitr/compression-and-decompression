@@ -1,0 +1,9 @@
+{
+    "build": {
+      "commands": ["npm run build"]
+    },
+    "deploy": {
+      "startCommand": "npm start"
+    }
+  }
+  
