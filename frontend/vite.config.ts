@@ -7,7 +7,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   build: {
-    outDir: '../backend/dist/frontend',  // ✅ Output directly into backend/dist
+    outDir: 'dist',  // ✅ Output directly into backend/dist
     assetsDir: 'assets'
   },
   base: './'
