@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { Buffer } from 'buffer';
-
+import { performance } from 'perf_hooks';
 import {
   compressWithHuffman,
   decompressWithHuffman,
@@ -37,46 +37,60 @@ const algorithmMap: Record<string, AlgorithmPair> = {
   },
 };
 
-export async function compressAndDecompressFile(
+export async function compressFile(
   filePath: string,
-  algorithm: string,
-  originalExtension: string
+  algorithm: string
 ): Promise<{
   compressedSize: number;
   compressionTime: number;
-  decompressedPath: string;
-  decompressionTime: number;
+  compressedPath: string;
 }> {
   if (!(algorithm in algorithmMap)) {
     throw new Error('Unsupported algorithm');
   }
 
   const inputBuffer = await fs.promises.readFile(filePath);
+  const { compress } = algorithmMap[algorithm];
 
-  const { compress, decompress } = algorithmMap[algorithm];
-
-  // ----------- COMPRESSION ----------
-  const t0 = Date.now();
+  const t0 = performance.now();
   const compressed = compress(inputBuffer);
-  const compressionTime = Date.now() - t0;
-  const compressedSize = compressed.length;
+  const compressionTime = performance.now() - t0;
 
-  // Optional: write temp compressed file
-  const tempCompressedPath = filePath + `.temp_compressed`;
-  await fs.promises.writeFile(tempCompressedPath, compressed);
-
-  // ----------- DECOMPRESSION ----------
-  const t1 = Date.now();
-  const decompressed = decompress(compressed);
-  const decompressionTime = Date.now() - t1;
-
-  const outputPath = filePath + `_decompressed.${originalExtension}`;
-  await fs.promises.writeFile(outputPath, decompressed);
+  const compressedPath = `${filePath}.compressed.${algorithm}`;
+  await fs.promises.writeFile(compressedPath, compressed);
 
   return {
-    compressedSize,
+    compressedSize: compressed.length,
     compressionTime,
-    decompressedPath: outputPath,
+    compressedPath,
+  };
+}
+
+// ---------- DECOMPRESSION ----------
+export async function decompressFile(
+  filePath: string,
+  algorithm: string,
+  originalExtension: string
+): Promise<{
+  decompressionTime: number;
+  decompressedPath: string;
+}> {
+  if (!(algorithm in algorithmMap)) {
+    throw new Error('Unsupported algorithm');
+  }
+
+  const compressedBuffer = await fs.promises.readFile(filePath);
+  const { decompress } = algorithmMap[algorithm];
+
+  const t0 = performance.now();
+  const decompressed = decompress(compressedBuffer);
+  const decompressionTime = performance.now() - t0;
+
+  const decompressedPath = `${filePath}_decompressed.${originalExtension}`;
+  await fs.promises.writeFile(decompressedPath, decompressed);
+
+  return {
     decompressionTime,
+    decompressedPath,
   };
 }

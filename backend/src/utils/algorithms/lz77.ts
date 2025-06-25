@@ -1,67 +1,77 @@
 import { Buffer } from 'buffer';
 
-interface LZTuple {
-  offset: number;
-  length: number;
-  next: number;
-}
+const WINDOW_SIZE = 2048; // sliding window
+const MAX_MATCH = 18;     // maximum match length
 
-export function compressWithLZ77(input: Buffer): Buffer {
-  const windowSize = 256;
-  const buffer: LZTuple[] = [];
+type Token = { offset: number; length: number; next: number };
 
+function encodeLZ77(data: Buffer): Token[] {
+  const tokens: Token[] = [];
   let i = 0;
-  while (i < input.length) {
-    let matchLength = 0;
-    let matchDistance = 0;
-    const maxMatchLength = 15;
 
-    const start = Math.max(0, i - windowSize);
-    for (let j = start; j < i; j++) {
-      let k = 0;
+  while (i < data.length) {
+    let matchOffset = 0, matchLength = 0;
+
+    const start = Math.max(0, i - WINDOW_SIZE);
+    const window = data.slice(start, i);
+
+    for (let j = 0; j < window.length; j++) {
+      let length = 0;
       while (
-        k < maxMatchLength &&
-        input[j + k] === input[i + k] &&
-        i + k < input.length
+        length < MAX_MATCH &&
+        i + length < data.length &&
+        window[j + length] === data[i + length]
       ) {
-        k++;
+        length++;
       }
 
-      if (k > matchLength) {
-        matchLength = k;
-        matchDistance = i - j;
+      if (length > matchLength) {
+        matchLength = length;
+        matchOffset = window.length - j;
       }
     }
 
-    const nextByte = input[i + matchLength] ?? 0;
-    buffer.push({ offset: matchDistance, length: matchLength, next: nextByte });
+    const nextByte = data[i + matchLength] || 0;
+    tokens.push({ offset: matchOffset, length: matchLength, next: nextByte });
     i += matchLength + 1;
   }
 
-  // Pack into a Buffer
+  return tokens;
+}
+
+function decodeLZ77(tokens: Token[]): Buffer {
   const output: number[] = [];
-  for (const { offset, length, next } of buffer) {
-    output.push(offset, length, next);
+
+  for (const token of tokens) {
+    const start = output.length - token.offset;
+    for (let i = 0; i < token.length; i++) {
+      output.push(output[start + i]);
+    }
+    output.push(token.next);
   }
 
   return Buffer.from(output);
 }
 
-export function decompressWithLZ77(input: Buffer): Buffer {
-  const output: number[] = [];
+export function compressWithLZ77(input: Buffer): Buffer {
+  const tokens = encodeLZ77(input);
+  const result: number[] = [];
 
-  for (let i = 0; i < input.length; i += 3) {
-    const offset = input[i];
-    const length = input[i + 1];
-    const next = input[i + 2];
-
-    const start = output.length - offset;
-    for (let j = 0; j < length; j++) {
-      output.push(output[start + j]);
-    }
-
-    output.push(next);
+  for (const { offset, length, next } of tokens) {
+    result.push((offset >> 8) & 0xff, offset & 0xff, length, next);
   }
 
-  return Buffer.from(output);
+  return Buffer.from(result);
+}
+
+export function decompressWithLZ77(input: Buffer): Buffer {
+  const tokens: Token[] = [];
+  for (let i = 0; i < input.length; i += 4) {
+    const offset = (input[i] << 8) | input[i + 1];
+    const length = input[i + 2];
+    const next = input[i + 3];
+    tokens.push({ offset, length, next });
+  }
+
+  return decodeLZ77(tokens);
 }

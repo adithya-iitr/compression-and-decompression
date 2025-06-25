@@ -1,49 +1,34 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
-import { compressAndDecompressFile } from '../utils/compress'; // Unified handler
-
+import { compressFile } from '../utils/compress';
 const router = express.Router();
 
 router.post('/compress', async (req, res:any) => {
-  const { filePath, algorithm, originalExtension } = req.body;
+  const { filePath, algorithm } = req.body;
 
   if (!filePath || !fs.existsSync(filePath)) {
     return res.status(400).json({ message: 'Invalid or missing file path.' });
   }
 
   try {
-    const start = Date.now();
-    const {
-      compressedSize,
-      compressionTime,
-      decompressedPath,
-      decompressionTime
-    } = await compressAndDecompressFile(filePath, algorithm, originalExtension);
+    const { compressedSize, compressionTime, compressedPath } = await compressFile(filePath, algorithm);
 
     const downloadsDir = path.join(__dirname, '..', 'downloads');
-    if (!fs.existsSync(downloadsDir)) {
-      fs.mkdirSync(downloadsDir);
-    }
+    if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir);
 
-    const finalFilename = path.basename(decompressedPath);
+    const finalFilename = path.basename(compressedPath);
     const destinationPath = path.join(downloadsDir, finalFilename);
-    await fs.promises.copyFile(decompressedPath, destinationPath);
-
-    const stats = fs.statSync(destinationPath);
-    const end = Date.now();
+    await fs.promises.copyFile(compressedPath, destinationPath);
 
     res.status(200).json({
+      compressedFilePath: finalFilename,
       compressedSize,
       compressionTime,
-      decompressedFilePath: finalFilename,
-      decompressedSize: stats.size,
-      decompressionTime,
     });
-
   } catch (err) {
-    console.error('[COMPRESSION+DECOMPRESSION ERROR]', err);
-    res.status(500).json({ message: 'Compression-Decompression failed.' });
+    console.error('[COMPRESSION ERROR]', err);
+    res.status(500).json({ message: 'Compression failed.' });
   }
 });
 

@@ -1,4 +1,3 @@
-// backend/utils/algorithms/huffman.ts
 import { Buffer } from 'buffer';
 
 type HuffmanNode = {
@@ -8,16 +7,8 @@ type HuffmanNode = {
   right: HuffmanNode | null;
 };
 
-export function compressWithHuffman(input: Buffer): Buffer {
-  const freq: Record<number, number> = {};
-  for (const byte of input) freq[byte] = (freq[byte] || 0) + 1;
-
-  const freqBuffer = Buffer.alloc(1024);
-  Object.entries(freq).forEach(([byte, count]) => {
-    freqBuffer.writeUInt32BE(count, parseInt(byte) * 4);
-  });
-
-  const nodes: HuffmanNode[] = Object.entries(freq).map(([byte, freq]) => ({
+function buildTree(freqMap: Record<number, number>): HuffmanNode {
+  const nodes: HuffmanNode[] = Object.entries(freqMap).map(([byte, freq]) => ({
     byte: parseInt(byte),
     freq,
     left: null,
@@ -31,26 +22,47 @@ export function compressWithHuffman(input: Buffer): Buffer {
     nodes.push({ byte: null, freq: left.freq + right.freq, left, right });
   }
 
-  const root = nodes[0];
-  const codeMap: Record<number, string> = {};
-  const traverse = (node: HuffmanNode, path: string) => {
+  return nodes[0];
+}
+
+function generateCodes(root: HuffmanNode): Record<number, string> {
+  const map: Record<number, string> = {};
+  const dfs = (node: HuffmanNode, path: string) => {
     if (node.byte !== null) {
-      codeMap[node.byte] = path;
+      map[node.byte] = path;
       return;
     }
-    traverse(node.left!, path + '0');
-    traverse(node.right!, path + '1');
+    dfs(node.left!, path + '0');
+    dfs(node.right!, path + '1');
   };
-  traverse(root, '');
+  dfs(root, '');
+  return map;
+}
 
-  let bitString = '';
-  for (const byte of input) bitString += codeMap[byte];
+export function compressWithHuffman(input: Buffer): Buffer {
+  const freq: Record<number, number> = {};
+  for (const byte of input) freq[byte] = (freq[byte] || 0) + 1;
+
+  const root = buildTree(freq);
+  const codeMap = generateCodes(root);
+
+  let bitStr = '';
+  for (const byte of input) bitStr += codeMap[byte];
+
   const byteArray = [];
-  for (let i = 0; i < bitString.length; i += 8) {
-    byteArray.push(parseInt(bitString.slice(i, i + 8).padEnd(8, '0'), 2));
+  for (let i = 0; i < bitStr.length; i += 8) {
+    byteArray.push(parseInt(bitStr.slice(i, i + 8).padEnd(8, '0'), 2));
   }
 
-  return Buffer.concat([freqBuffer, Buffer.from(byteArray)]);
+  const freqBuffer = Buffer.alloc(1024);
+  for (let i = 0; i < 256; i++) {
+    freqBuffer.writeUInt32BE(freq[i] || 0, i * 4);
+  }
+
+  const bitLength = Buffer.alloc(4);
+  bitLength.writeUInt32BE(bitStr.length, 0);
+
+  return Buffer.concat([freqBuffer, bitLength, Buffer.from(byteArray)]);
 }
 
 export function decompressWithHuffman(buffer: Buffer): Buffer {
@@ -59,28 +71,20 @@ export function decompressWithHuffman(buffer: Buffer): Buffer {
     freq[i] = buffer.readUInt32BE(i * 4);
   }
 
-  const nodes: HuffmanNode[] = [];
-  for (let byte = 0; byte < 256; byte++) {
-    if (freq[byte] > 0) {
-      nodes.push({ byte, freq: freq[byte], left: null, right: null });
-    }
-  }
+  const root = buildTree(Object.fromEntries(freq.map((f, i) => [i, f]).filter(([_, f]) => f > 0)));
 
-  while (nodes.length > 1) {
-    nodes.sort((a, b) => a.freq - b.freq);
-    const left = nodes.shift()!;
-    const right = nodes.shift()!;
-    nodes.push({ byte: null, freq: left.freq + right.freq, left, right });
-  }
+  const bitLength = buffer.readUInt32BE(1024);
+  const bitData = buffer.slice(1028);
 
-  const root = nodes[0];
-  const bitData = buffer.slice(1024);
-  let bitString = '';
-  for (const byte of bitData) bitString += byte.toString(2).padStart(8, '0');
+  let bitStr = '';
+  for (const byte of bitData) {
+    bitStr += byte.toString(2).padStart(8, '0');
+  }
+  bitStr = bitStr.slice(0, bitLength); // Trim trailing padding
 
   const output: number[] = [];
   let node = root;
-  for (const bit of bitString) {
+  for (const bit of bitStr) {
     node = bit === '0' ? node.left! : node.right!;
     if (node.byte !== null) {
       output.push(node.byte);

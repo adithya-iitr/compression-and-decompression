@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart3, Zap, Clock } from 'lucide-react';
-import { CompressionAlgorithm, FileData } from '../../../types';
-import { calculateCompressionRatio } from '../utils/fileUtils';
+import { FileData } from '../../../types';
 
 interface AlgorithmComparisonProps {
-  algorithms: CompressionAlgorithm[];
   file: FileData;
 }
 
@@ -15,28 +13,44 @@ interface ComparisonResult {
   compressedSize: number;
 }
 
-export function AlgorithmComparison({ algorithms, file }: AlgorithmComparisonProps) {
+export function AlgorithmComparison({ file }: AlgorithmComparisonProps) {
   const [results, setResults] = useState<ComparisonResult[]>([]);
   const [isComparing, setIsComparing] = useState(false);
+
+  const calculateCompressionRatio = (originalSize: number, compressedSize: number): number => {
+    if (!originalSize || !compressedSize) return 0;
+    return ((originalSize - compressedSize) / originalSize) * 100;
+  };
 
   const runComparison = async () => {
     setIsComparing(true);
     const comparisonResults: ComparisonResult[] = [];
 
-    for (const algorithm of algorithms) {
+    for (const algorithm of ['huffman', 'rle', 'lz77']) {
       try {
-        const { compressed, time } = algorithm.compress(file.content);
-        const compressedSize = new Blob([compressed]).size;
-        const ratio = calculateCompressionRatio(file.size, compressedSize);
-        
-        comparisonResults.push({
-          algorithm: algorithm.name,
-          compressionRatio: ratio,
-          compressionTime: time,
-          compressedSize
+        const response = await fetch('http://localhost:8000/api/compress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filePath: file.path,
+            algorithm,
+            originalExtension: file.name.split('.').pop(),
+          }),
         });
-      } catch (error) {
-        console.error(`Error with ${algorithm.name}:`, error);
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const ratio = calculateCompressionRatio(file.size, data.compressedSize);
+
+        comparisonResults.push({
+          algorithm: algorithm.toUpperCase(),
+          compressionRatio: ratio,
+          compressionTime: data.compressionTime || 0,
+          compressedSize: data.compressedSize || 0,
+        });
+      } catch (err) {
+        console.error(`[${algorithm.toUpperCase()} ERROR]`, err);
       }
     }
 
@@ -45,20 +59,20 @@ export function AlgorithmComparison({ algorithms, file }: AlgorithmComparisonPro
   };
 
   useEffect(() => {
-    if (file && algorithms.length > 0) {
-      runComparison();
-    }
-  }, [file, algorithms]);
+    if (file?.path) runComparison();
+  }, [file]);
 
   if (!file) return null;
 
-  const bestCompression = results.reduce((best, current) => 
-    current.compressionRatio > best.compressionRatio ? current : best
-  , results[0] || { compressionRatio: -Infinity });
+  const bestCompression = results.reduce(
+    (best, curr) => (curr.compressionRatio > best.compressionRatio ? curr : best),
+    results[0] || { compressionRatio: -Infinity }
+  );
 
-  const fastestAlgorithm = results.reduce((fastest, current) => 
-    current.compressionTime < fastest.compressionTime ? current : fastest
-  , results[0] || { compressionTime: Infinity });
+  const fastestAlgorithm = results.reduce(
+    (fastest, curr) => (curr.compressionTime < fastest.compressionTime ? curr : fastest),
+    results[0] || { compressionTime: Infinity }
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
@@ -83,7 +97,7 @@ export function AlgorithmComparison({ algorithms, file }: AlgorithmComparisonPro
         </div>
       ) : results.length > 0 ? (
         <div className="space-y-6">
-          {/* Best Performers */}
+          {/* Highlights */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-green-50 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-2">
@@ -91,37 +105,48 @@ export function AlgorithmComparison({ algorithms, file }: AlgorithmComparisonPro
                 <span className="text-sm font-medium text-green-600">Best Compression</span>
               </div>
               <p className="text-lg font-semibold text-green-900">{bestCompression?.algorithm}</p>
-              <p className="text-sm text-green-700">{bestCompression?.compressionRatio.toFixed(1)}% reduction</p>
+              <p className="text-sm text-green-700">
+                {bestCompression.compressionRatio >= 0
+                  ? `${bestCompression.compressionRatio.toFixed(1)}% reduction`
+                  : `${Math.abs(bestCompression.compressionRatio).toFixed(1)}% increase`}
+              </p>
             </div>
-            
+
             <div className="bg-blue-50 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <Clock className="w-4 h-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-600">Fastest Algorithm</span>
               </div>
               <p className="text-lg font-semibold text-blue-900">{fastestAlgorithm?.algorithm}</p>
-              <p className="text-sm text-blue-700">{fastestAlgorithm?.compressionTime.toFixed(2)}ms</p>
+              <p className="text-sm text-blue-700">
+                {fastestAlgorithm?.compressionTime.toFixed(2)}ms
+              </p>
             </div>
           </div>
 
-          {/* Comparison Chart */}
+          {/* Chart */}
           <div className="space-y-4">
             <h4 className="font-medium text-gray-900">Compression Efficiency</h4>
             {results.map((result) => (
               <div key={result.algorithm} className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-700">{result.algorithm}</span>
-                  <span className="text-sm text-gray-600">
-                    {result.compressionRatio > 0 ? '+' : ''}{result.compressionRatio.toFixed(1)}%
+                  <span
+                    className={`text-sm ${
+                      result.compressionRatio >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}
+                  >
+                    {result.compressionRatio >= 0 ? '+' : '-'}
+                    {Math.abs(result.compressionRatio).toFixed(1)}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all duration-500 ${
-                      result.compressionRatio > 0 ? 'bg-green-500' : 'bg-red-500'
+                  <div
+                    className={`h-2 rounded-full ${
+                      result.compressionRatio >= 0 ? 'bg-green-500' : 'bg-red-500'
                     }`}
-                    style={{ 
-                      width: `${Math.min(Math.abs(result.compressionRatio), 100)}%` 
+                    style={{
+                      width: `${Math.min(Math.abs(result.compressionRatio), 100)}%`,
                     }}
                   ></div>
                 </div>
@@ -129,25 +154,28 @@ export function AlgorithmComparison({ algorithms, file }: AlgorithmComparisonPro
             ))}
           </div>
 
-          {/* Performance Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          {/* Table */}
+          <div className="overflow-x-auto mt-6">
+            <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 font-medium text-gray-600">Algorithm</th>
-                  <th className="text-right py-2 font-medium text-gray-600">Ratio</th>
-                  <th className="text-right py-2 font-medium text-gray-600">Time (ms)</th>
-                  <th className="text-right py-2 font-medium text-gray-600">Size</th>
+                  <th className="py-2 font-medium text-gray-600">Algorithm</th>
+                  <th className="py-2 font-medium text-gray-600 text-right">Ratio</th>
+                  <th className="py-2 font-medium text-gray-600 text-right">Compression Time (ms)</th>
+                  <th className="py-2 font-medium text-gray-600 text-right">Size</th>
                 </tr>
               </thead>
               <tbody>
                 {results.map((result) => (
                   <tr key={result.algorithm} className="border-b border-gray-100">
-                    <td className="py-2 font-medium text-gray-900">{result.algorithm}</td>
-                    <td className={`py-2 text-right font-medium ${
-                      result.compressionRatio > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {result.compressionRatio > 0 ? '+' : ''}{result.compressionRatio.toFixed(1)}%
+                    <td className="py-2 text-gray-900">{result.algorithm}</td>
+                    <td
+                      className={`py-2 text-right font-medium ${
+                        result.compressionRatio >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {result.compressionRatio >= 0 ? '+' : '-'}
+                      {Math.abs(result.compressionRatio).toFixed(1)}%
                     </td>
                     <td className="py-2 text-right text-gray-600">
                       {result.compressionTime.toFixed(2)}
@@ -162,9 +190,7 @@ export function AlgorithmComparison({ algorithms, file }: AlgorithmComparisonPro
           </div>
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500">
-          No comparison results available
-        </div>
+        <div className="text-center py-8 text-gray-500">No comparison results available</div>
       )}
     </div>
   );
